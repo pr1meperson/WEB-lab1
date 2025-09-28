@@ -1,0 +1,9 @@
+$color: blue;
+
+body {
+  background: #f5f5f5;
+  h1 {
+    color: $color;
+    text-align: center;
+  }
+}
