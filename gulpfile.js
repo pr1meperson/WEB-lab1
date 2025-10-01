@@ -1,4 +1,3 @@
-// Імпортуємо необхідні модулі
 const { src, dest, series, parallel, watch } = require('gulp');
 const sass = require('gulp-sass')(require('sass'));
 const cssnano = require('gulp-cssnano');
@@ -10,68 +9,52 @@ const browserSync = require('browser-sync').create();
 const fileInclude = require('gulp-file-include');
 const del = require('del');
 
-// 🧹 Очищення папки dist
-const clean = () => {
-    return del(['dist']);
+// 🧹 Clean
+const clean = () => del(['dist']);
+
+// 📄 HTML
+const html = () => src('app/index.html')
+    .pipe(fileInclude({ prefix: '@@', basepath: '@file' }))
+    .pipe(dest('dist'))
+    .pipe(browserSync.stream());
+
+// 🎨 Styles
+const styles = () => src('app/scss/*.scss')
+    .pipe(sass().on('error', sass.logError))
+    .pipe(cssnano())
+    .pipe(rename({ suffix: '.min' }))
+    .pipe(dest('dist/css'))
+    .pipe(browserSync.stream());
+
+// 💻 Scripts
+const scripts = () => src('app/js/*.js')
+    .pipe(concat('main.min.js'))
+    .pipe(uglify().on('error', e => { console.log(e.toString()); this.emit('end'); }))
+    .pipe(dest('dist/js'))
+    .pipe(browserSync.stream());
+
+// 🖼️ Images
+const images = () => src('app/img/**/*')
+    .pipe(imagemin())
+    .pipe(dest('dist/imgs'));
+
+// 🔄 Server
+const sync = done => { browserSync.init({ server: { baseDir: 'dist' } }); done(); };
+
+// 👀 Watcher
+const watcher = () => {
+    watch('app/**/*.html', html);
+    watch('app/scss/**/*.scss', styles);
+    watch('app/js/**/*.js', scripts);
+    watch('app/img/**/*', images);
 };
 
-// 📄 HTML task з file-include
-const html_task = () => {
-    return src('app/index.html')
-        .pipe(fileInclude({
-            prefix: '@@',
-            basepath: '@file'
-        }))
-        .pipe(dest('dist'))
-        .pipe(browserSync.stream());
-};
-
-// 🎨 SCSS → CSS task
-const scss_task = () => {
-    return src('app/scss/*.scss')
-        .pipe(sass().on('error', sass.logError))
-        .pipe(cssnano())
-        .pipe(rename({ suffix: '.min' }))
-        .pipe(dest('dist/css'))
-        .pipe(browserSync.stream());
-};
-
-// 💻 JS task: об'єднання + мінімізація
-const js_task = () => {
-    return src('app/js/*.js')
-        .pipe(concat('main.min.js'))
-        .pipe(uglify().on('error', function(e){ console.log(e.toString()); this.emit('end'); }))
-        .pipe(dest('dist/js'))
-        .pipe(browserSync.stream());
-};
-
-// 🖼️ Оптимізація зображень
-const img_task = () => {
-    return src('app/img/*')
-        .pipe(imagemin())
-        .pipe(dest('dist/imgs'));
-};
-
-// 🔁 Watch + live server
-const serve = () => {
-    browserSync.init({ server: { baseDir: 'dist' }});
-    watch('app/**/*.html', html_task);
-    watch('app/scss/**/*.scss', scss_task);
-    watch('app/js/**/*.js', js_task);
-    watch('app/img/**/*', img_task);
-};
-
-// 🏁 Експорт тасок
+// 🏁 Exports
 exports.clean = clean;
-exports.html_task = html_task;
-exports.scss_task = scss_task;
-exports.js_task = js_task;
-exports.img_task = img_task;
-exports.serve = serve;
-
-// 📦 Основна таска
-exports.default = series(
-    clean,
-    parallel(html_task, scss_task, js_task, img_task),
-    serve
-);
+exports.html = html;
+exports.styles = styles;
+exports.scripts = scripts;
+exports.images = images;
+exports.sync = sync;
+exports.watcher = watcher;
+exports.default = series(clean, parallel(html, styles, scripts, images), sync, watcher);
